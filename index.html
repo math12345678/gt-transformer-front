@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ground Truth — GT-Transformer &amp; recombx</title>
+    <meta
+      name="description"
+      content="Fast, calibrated recombination inference for viral and microbial genomes uniting a Window Transformer with permutation-calibrated Flanking-KL divergence."
+    />
+    <meta property="og:title" content="Ground Truth — GT-Transformer &amp; recombx" />
+    <meta
+      property="og:description"
+      content="Fast, calibrated recombination inference for viral and microbial genomes uniting a Window Transformer with permutation-calibrated Flanking-KL divergence."
+    />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('gt-theme-preference');
+          var prefersDark =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-[#F6F6F3] dark:bg-[#121316] text-[#141416] dark:text-[#F3F4F6] antialiased selection:bg-[#4F6BF6]/15 dark:selection:bg-[#2DD4A4]/25 selection:text-[#141416] dark:selection:text-white transition-colors duration-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

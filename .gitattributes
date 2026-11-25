@@ -1,0 +1,2 @@
+# Validation fixtures intentionally include CRLF endings and trailing spaces.
+tests/fixtures/*.fasta -text -whitespace

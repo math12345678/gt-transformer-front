@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gt-transformer | Recombination Detection Interface</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=15" />
+</head>
+
+<body>
+  <!-- Desktop Toolbar -->
+  <header class="rdp-toolbar app-toolbar">
+    <div class="toolbar-buttons">
+      <button type="button" id="btnOpenFasta" class="tb-btn" title="Upload or paste FASTA alignment & ground truth">
+        Open
+      </button>
+      <div class="tb-sep"></div>
+      <button type="button" id="btnRunTop" class="tb-btn tb-btn-run" title="Run recombination detection">
+        Run
+      </button>
+      <button type="button" id="btnCancelJobTop" class="tb-btn tb-btn-cancel hidden" title="Cancel active job">
+        Cancel
+      </button>
+      <button type="button" id="btnOptionsTop" class="tb-btn" title="Configure model and localiser options (.ini)">
+        Options
+      </button>
+      <button type="button" id="btnToggleHowToUse" class="tb-btn" title="Show or hide the quick user guide">
+        How to use
+      </button>
+      <div class="tb-sep"></div>
+      <div class="export-dropdown" id="exportDropdown">
+        <button type="button" id="btnExportMenu" class="tb-btn"
+          title="Export .rdp project, GFF3, BED, FASTA tracts, CSV/TSV/JSON, HTML report, and plots">Export ▾</button>
+        <div class="export-menu hidden" id="exportMenuPanel">
+          <button type="button" id="btnExportCompleteZip" class="export-item"
+            title="Download all PNG plots, .rdp project, GFF3/BED tracks, printable HTML report, CSVs, TSV, and JSON in a single ZIP archive"><strong>Complete Bundle (ZIP)</strong></button>
+          <button type="button" id="btnExportRdpProject" class="export-item"
+            title="Download full RDP-compatible structured project session file (.rdp)">Download .rdp Project File (.rdp)</button>
+          <button type="button" id="btnExportGff3" class="export-item"
+            title="Download standard GFF3 genome track of breakpoint spans and parental tracts">Download GFF3 Annotation Track (.gff3)</button>
+          <button type="button" id="btnExportBed" class="export-item"
+            title="Download BED6 genome browser track of detected breakpoints">Download BED Breakpoint Track (.bed)</button>
+          <button type="button" id="btnExportRecFasta" class="export-item"
+            title="Download recombinant carrier Left/Right mosaic segments in FASTA format">Download Recombinant Tracts (FASTA)</button>
+          <hr class="sep" style="margin:3px 0;" />
+          <button type="button" id="btnExportAllPlots" class="export-item" title="Generate and download 5 PNG plots">All
+            Plots (5 PNGs)</button>
+          <button type="button" id="btnExportBpCsv" class="export-item">Download CSV (Breakpoints)</button>
+          <button type="button" id="btnExportOpenRdpTsv" class="export-item">Summary Table (TSV)</button>
+          <button type="button" id="btnExportSeqCsv" class="export-item">Sequence &amp; Parent Calls (CSV)</button>
+          <button type="button" id="btnExportJson" class="export-item">Download JSON (Full Report)</button>
+          <button type="button" id="btnExportHtmlReport" class="export-item"
+            title="Self-contained printable HTML report with embedded plots and summary">Download HTML Report (Printable)</button>
+          <a href="/api/timings/export.csv" class="export-item">Timings History (CSV)</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar-dataset">
+      <select id="presetSelect" class="tb-select hidden" aria-hidden="true" tabindex="-1"></select>
+      <span id="activeAlignmentBadge" class="status-box" style="background:#f8fafc;border-color:#94a3b8;color:#0f172a;"
+        title="Active FASTA alignment (click Open or drop a .fasta/.fas/.fa file anywhere)">No alignment loaded (Click Open or Drop FASTA)</span>
+      <span id="engineStatusBadge" class="status-box">live · 570,881 params · ready</span>
+      <button type="button" id="btnCompareRuns" class="tb-btn" title="Compare recent or saved runs side by side">Compare</button>
+      <button type="button" id="btnMyHistory" class="tb-btn hidden" title="View your private saved runs">My
+        Runs</button>
+      <button type="button" id="btnAdminPanel" class="tb-btn hidden"
+        title="Admin: inspect all user runs and continuous self-training log">Admin</button>
+      <button type="button" id="btnAuthAccount" class="tb-btn" title="Sign in or create a private account">Sign
+        In</button>
+    </div>
+  </header>
+
+  <!-- Global Inline Error Banner (Non-blocking replacement for alert dialogs) -->
+  <div id="globalErrorBanner" class="global-error-banner hidden" role="alert">
+    <div class="banner-content">
+      <span class="banner-icon">⚠️</span>
+      <span id="globalErrorMessage" class="banner-text"></span>
+    </div>
+    <button type="button" id="btnDismissGlobalError" class="banner-dismiss" title="Dismiss error">&times;</button>
+  </div>
+
+  <!-- Live Background Job Progress & Cancel Bar -->
+  <div id="jobStatusBar" class="job-status-bar hidden" role="status" aria-live="polite">
+    <div class="job-status-left">
+      <span id="jobStatusBadge" class="job-badge">Running</span>
+      <span id="jobStageText" class="mono">Stage: parsing</span>
+      <span id="jobElapsedText" class="mono-muted">(0.0 s)</span>
+    </div>
+    <button type="button" id="btnCancelJobBanner" class="tb-btn tb-btn-cancel">Cancel Job</button>
+  </div>
+
+  <!-- Phase 6: Self-Explanatory "How to use" Panel for Dr. Martin -->
+  <section id="howToUsePanel" class="how-to-panel">
+    <div class="how-to-header">
+      <strong>How to Use gt-transformer</strong>
+      <div class="how-to-actions">
+        <button type="button" id="btnDownloadCsvGuide" class="mini-btn" title="Download current results as CSV">Download
+          Results (CSV)</button>
+        <button type="button" id="btnDownloadJsonGuide" class="mini-btn"
+          title="Download current results as JSON">Download Results (JSON)</button>
+        <button type="button" id="btnCloseHowToUse" class="mini-btn" title="Hide guide">Hide</button>
+      </div>
+    </div>
+    <div class="how-to-grid">
+      <div class="how-to-col">
+        <h4>1. Input Rules</h4>
+        <ul>
+          <li><strong>Aligned FASTA:</strong> 5 to 500 sequences, identical aligned length up to 50,000 bp (max 20 MB
+            upload).</li>
+          <li><strong>Alphabet:</strong> Standard IUPAC nucleotide codes (<code>ACGTUNRYKMSWBDHV-.?</code>) and gaps
+            (<code>-</code>, <code>.</code>). Whitespace, <code>\r</code>, and embedded digits are stripped; sequences
+            are uppercased automatically.</li>
+          <li><strong>Headers:</strong> First word after <code>&gt;</code> is used as the display name; hover any
+            sequence name to see the full header.</li>
+        </ul>
+      </div>
+      <div class="how-to-col">
+        <h4>2. Output Columns</h4>
+        <ul>
+          <li><strong>BP (orig) &amp; Span (orig):</strong> 1-based alignment column of the breakpoint and its
+            confidence interval (<code>start..end</code> bp).</li>
+          <li><strong>Carriers:</strong> Recombinant sequence(s) carrying the mosaic switch (e.g. <code>R1_rec</code>).
+          </li>
+          <li><strong>Ext Parents (L→R):</strong> Flanking parental lineages across the breakpoint (backbone/major vs
+            donor/minor parent). Identical sibling candidates are reported as <code>P1 or P5</code>.</li>
+        </ul>
+      </div>
+      <div class="how-to-col">
+        <h4>3. Modes &amp; Checkpoints</h4>
+        <ul>
+          <li><strong>Hybrid (default):</strong> Combines permutation-calibrated flanking KL scan with 4-row quartet
+            Transformer scoring.</li>
+          <li><strong>Transformer only / Flanking KL only:</strong> Run the neural quartet scorer standalone or the fast
+            analytical KL scan alone.</li>
+          <li><strong>Checkpoints:</strong> <code>ckpt_N40000</code> (40k corpus standard model, default) and <code>ckpt_N10000</code> (10k standard model); switch to <code>ckpt_N10000_extreme</code> for high-divergence OOD alignments, <code>ckpt_N10000_v2</code> for LD-invariant features, or <code>ckpt_ensemble</code> for multi-model LogMeanExp fusion.</li>
+        </ul>
+      </div>
+      <div class="how-to-col">
+        <h4>4. Known Limits &amp; Run Times</h4>
+        <ul>
+          <li><strong>Limits:</strong> ~30 bp edge dead zone at alignment ends; short tracts (&lt;100 bp) or &lt;10
+            parsimony-informative sites have reduced power.</li>
+          <li><strong>Typical CPU run times (from <code>timings.csv</code>):</strong> <code>8 × 1,500 bp</code>: ~1.2 s
+            &nbsp;|&nbsp; <code>6 × 1,200 bp</code>: ~2.1 s &nbsp;|&nbsp; <code>60 × 3,000 bp</code>: ~6.4 s
+            &nbsp;|&nbsp; <code>96 × 3,536 bp</code>: ~23.8 s.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Full-Length Alignment & Informative-Site Overview Strip (Graph 1) -->
+  <div class="overview-strip-wrap">
+    <div class="overview-strip-head">
+      <span class="graph-title">Graph 1: Genome-Wide Polymorphic Site Density &amp; Breakpoint Overview Map</span>
+      <span class="graph-legend-inline">
+        <span class="legend-item"><span class="legend-swatch" style="background:#b4008c;height:6px;"></span>Informative Site Density</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#1a4b8c;height:6px;"></span>Detected Breakpoint Span</span>
+        <span class="mono-muted">(Click anywhere to jump alignment)</span>
+      </span>
+    </div>
+    <canvas id="overviewStripCanvas" width="1280" height="30"></canvas>
+  </div>
+
+  <!-- 2x2 Desktop Split Workspace -->
+  <main class="rdp-grid">
+    <!-- PANE 1 (TOP-LEFT): Multiple Sequence Alignment Viewer -->
+    <section class="rdp-pane pane-alignment">
+      <div class="pane-header">
+        <span class="pane-title" id="alnPaneTitle">1. Multiple Sequence Alignment &amp; Polymorphic Site Viewer</span>
+        <div class="aln-nav-controls">
+          <button type="button" id="btnAlnPrevFast" class="mini-btn" title="Back 500 bp">&lt;&lt;</button>
+          <button type="button" id="btnAlnPrev" class="mini-btn" title="Back 80 bp">&lt;</button>
+          <label class="mini-lbl">Pos:</label>
+          <input type="number" id="alnJumpInput" class="mini-input" value="0" min="0" />
+          <button type="button" id="btnAlnGo" class="mini-btn">Go</button>
+          <button type="button" id="btnAlnNext" class="mini-btn" title="Forward 80 bp">&gt;</button>
+          <button type="button" id="btnAlnNextFast" class="mini-btn" title="Forward 500 bp">&gt;&gt;</button>
+          <button type="button" id="btnAlnToEvent" class="mini-btn" title="Jump to selected breakpoint">Jump to
+            Event</button>
+          <button type="button" id="btnToggleBaseColors" class="mini-btn"
+            title="Toggle A/C/G/T color-coding in alignment matrix">Color Bases: ON</button>
+        </div>
+      </div>
+
+      <div class="aln-viewer-body">
+        <div class="aln-matrix-scroll" id="alnMatrixContainer">
+          <div class="mono-muted" style="padding:12px;">
+            Import or drop a FASTA alignment (.fasta, .fas, .fa), then press Run.
+            <span class="hidden" aria-hidden="true">Open a FASTA alignment or pick a demo, then press Run.</span>
+          </div>
+        </div>
+        <div class="aln-seq-sidebar">
+          <div class="aln-seq-sidebar-head">
+            <button type="button" id="btnToggleCarriersOnly" class="mini-btn btn-full">Show All Sequences</button>
+          </div>
+          <div class="aln-seq-list" id="alnSeqList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANE 2 (TOP-RIGHT): Tabbed Events, Carriers, Interactive Graphs & Timings -->
+    <section class="rdp-pane pane-inspector">
+      <div class="rdp-tabs" role="tablist">
+        <button type="button" class="rdp-tab active" data-tab="tab-overview">Overview</button>
+        <button type="button" class="rdp-tab" data-tab="tab-parents">Carriers &amp; Parents</button>
+        <button type="button" class="rdp-tab" data-tab="tab-evidence">Graph 4: Evidence Plot</button>
+        <button type="button" class="rdp-tab" data-tab="tab-simplot">Graph 5: Similarity Plot</button>
+        <button type="button" class="rdp-tab" data-tab="tab-diagnostics">Accuracy (TP/FP/FN)</button>
+        <button type="button" class="rdp-tab" data-tab="tab-timings">Timings</button>
+        <button type="button" class="rdp-tab hidden" data-tab="tab-benchmarks" aria-hidden="true">10k Validation</button>
+        <button type="button" class="rdp-tab" data-tab="tab-notes">Notes (<span
+            id="annotationCountBadge">0</span>)</button>
+      </div>
+
+      <div class="pane-tab-body">
+        <!-- TAB: Overview (Event Summary Table + Run Summary Strip) -->
+        <div id="tab-overview" class="tab-content">
+          <div class="summary-bar" id="runSummaryBar">
+            <span><strong>Alignment Size:</strong> <span class="help-q" tabindex="0"
+                data-tip="Number of aligned sequences × total alignment length in base pairs (bp).">?</span> <span
+                id="sumDimensions">-</span></span>
+            <span><strong>Informative Sites:</strong> <span class="help-q" tabindex="0"
+                data-tip="Columns where at least 2 different bases each appear in 2+ sequences. Only these sites carry phylogenetic signal for recombination.">?</span>
+              <span id="sumCols">-</span></span>
+            <span><strong>Breakpoints Found:</strong> <span class="help-q" tabindex="0"
+                data-tip="Total recombination breakpoints detected across the alignment. 0 means no recombination was found.">?</span>
+              <span id="sumEvents">-</span></span>
+            <span><strong>Recall:</strong> <span class="help-q" tabindex="0"
+                data-tip="Percentage of known true breakpoints recovered within tolerance (only shown when a ground-truth file is loaded).">?</span>
+              <span id="sumRecall">-</span></span>
+            <span><strong>Precision / F1:</strong> <span class="help-q" tabindex="0"
+                data-tip="Precision = % of predicted breakpoints that match truth; F1 = harmonic mean of Precision and Recall (only shown with ground truth).">?</span>
+              <span id="sumPrecision">-</span></span>
+            <span><strong>Median Error:</strong> <span class="help-q" tabindex="0"
+                data-tip="Median distance in bp between each detected breakpoint and the nearest true breakpoint (lower is better).">?</span>
+              <span id="sumMedErr">-</span></span>
+            <span><strong>Run Time:</strong> <span class="help-q" tabindex="0"
+                data-tip="Total wall-clock time to parse, scan, score, and render results.">?</span> <span
+                id="sumTime">-</span></span>
+            <span id="sumWarningsTag" class="sum-warnings-tag hidden"
+              title="Click to view warnings in Accuracy tab"></span>
+          </div>
+          <div class="stage-timing-banner hidden" id="stageTimingSummaryLine"></div>
+          <div class="plain-summary-card hidden" id="plainEnglishSummary">
+            <span id="plainEnglishSummaryText"></span>
+            <button type="button" id="btnExplainSummaryAi" class="mini-btn">Explain with AI</button>
+          </div>
+          <div class="pane-subhead" id="presetMetaLine">Import or drop a FASTA alignment (.fasta, .fas, .fa) anywhere on
+            the page, then press Run.</div>
+          <div class="event-filter-bar" id="eventFilterBar">
+            <input type="text" id="eventSearchInput" class="win-input"
+              placeholder="Filter events by carrier, parent, bp, or A#..." style="flex:1;min-width:160px;" />
+            <label class="mini-lbl" for="eventMinZInput">Min KL Z:</label>
+            <input type="number" id="eventMinZInput" class="win-input" value="0" min="0" step="0.5" style="width:62px;" />
+            <span id="eventFilterCount" class="mono-muted"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="rdp-table rdp-table-select" id="level1EventsTable">
+              <thead>
+                <tr>
+                  <th>Event # <span class="help-q" tabindex="0"
+                      data-tip="Sequential breakpoint ID and Ancestral Group badge (A1, A2...) grouping co-descendant events with matching parents and locality.">?</span>
+                  </th>
+                  <th>Evidence Source <span class="help-q" tabindex="0"
+                      data-tip="Which detector(s) supported this call: Hybrid (both KL + Transformer), Transformer-corroborated, or Flanking KL heuristic only.">?</span>
+                  </th>
+                  <th>Breakpoint (bp) <span class="help-q" tabindex="0"
+                      data-tip="1-based alignment column where the sequence switches from one parent to another.">?</span>
+                  </th>
+                  <th>Confidence Span (bp) <span class="help-q" tabindex="0"
+                      data-tip="Range of nearby candidate peaks merged into this single breakpoint event (start..end in bp).">?</span>
+                  </th>
+                  <th>Peaks <span class="help-q" tabindex="0"
+                      data-tip="Number of raw local peaks consolidated into this event.">?</span></th>
+                  <th>Flanking KL Z-Score <span class="help-q" tabindex="0"
+                      data-tip="How strongly closest-relative patterns shift across this position vs. shuffled data. Values above ~4.0 are statistically significant; higher = stronger evidence.">?</span>
+                  </th>
+                  <th>Transformer Score (Prob) <span class="help-q" tabindex="0"
+                      data-tip="Neural network logit and probability P(bp) from two-site (00,01,10,11) linkage patterns. Prob > 0.50 (logit > 0) supports a breakpoint; negative logit means out-of-distribution or KL-only.">?</span>
+                  </th>
+                  <th>Recombinant Sequence(s) <span class="help-q" tabindex="0"
+                      data-tip="Sequence(s) whose closest relative switches across this breakpoint (the inferred recombinant mosaic carrier).">?</span>
+                  </th>
+                  <th>Parents (Left → Right) <span class="help-q" tabindex="0"
+                      data-tip="Closest external parental sequences on the left side vs. right side of the breakpoint. Ties are shown as 'A or B'.">?</span>
+                  </th>
+                  <th>Status <span class="help-q" tabindex="0"
+                      data-tip="TP = matches ground truth within tolerance; FP = extra call; Empirical = no ground truth loaded.">?</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="level1EventsBody">
+                <tr>
+                  <td colspan="10" class="mono-muted">
+                    Import or drop a FASTA alignment (.fasta, .fas, .fa) to detect recombination breakpoints.
+                    <button type="button" class="mini-btn" style="margin-left:8px;"
+                      onclick="document.getElementById('btnOpenFasta').click()">Import FASTA Alignment...</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: Matrices / Parents (Level 2 & Level 3) -->
+        <div id="tab-parents" class="tab-content hidden">
+          <div class="pane-subhead" id="level2HeaderTitle">Select an event in Overview to inspect carrier sequences and
+            parental candidates.</div>
+          <div class="table-scroll">
+            <table class="rdp-table rdp-table-select" id="level2CarriersTable">
+              <thead>
+                <tr>
+                  <th>Seq # <span class="help-q" tabindex="0"
+                      data-tip="0-based index of the sequence in the FASTA file.">?</span></th>
+                  <th>Sequence Name <span class="help-q" tabindex="0"
+                      data-tip="Display name of the candidate recombinant carrier sequence.">?</span></th>
+                  <th>Switch Score <span class="help-q" tabindex="0"
+                      data-tip="KL divergence of this sequence's parent distribution between left and right flanks. Higher = clearer parent switch.">?</span>
+                  </th>
+                  <th>Left Parent <span class="help-q" tabindex="0"
+                      data-tip="Closest external sequence on the left side of the breakpoint.">?</span></th>
+                  <th>Right Parent <span class="help-q" tabindex="0"
+                      data-tip="Closest external sequence on the right side of the breakpoint.">?</span></th>
+                  <th>Left Similarity <span class="help-q" tabindex="0"
+                      data-tip="Fraction of informative sites matching the Left Parent in the left flanking window (0.0 to 1.0).">?</span>
+                  </th>
+                  <th>Right Similarity <span class="help-q" tabindex="0"
+                      data-tip="Fraction of informative sites matching the Right Parent in the right flanking window (0.0 to 1.0).">?</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="level2CarriersBody"></tbody>
+            </table>
+          </div>
+          <div class="pane-subhead mt-6" id="level3HeaderTitle">Ranked Parental Candidates</div>
+          <div id="level3ParentsContainer"></div>
+        </div>
+
+        <!-- TAB: Evidence Scatter & Confidence Plots (Graph 4A & 4B) -->
+        <div id="tab-evidence" class="tab-content hidden">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="graph-card">
+              <div class="graph-card-head">
+                <span class="graph-title">Graph 4A: Event Evidence Scatter: Flanking KL Z-Score vs. Transformer Probability P(bp)</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="graph-legend-inline">
+                    <span class="legend-item"><span class="legend-dot" style="background:#16a34a;"></span>Dual Consensus</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#d97706;"></span>KL-Driven / Short Tract</span>
+                  </span>
+                  <button type="button" id="btnDownloadScatterPlot" class="mini-btn">Save Scatter PNG</button>
+                </div>
+              </div>
+              <canvas id="evidenceScatterCanvas" width="660" height="260" style="display:block;background:#fff;"></canvas>
+            </div>
+            <div class="graph-card">
+              <div class="graph-card-head">
+                <span class="graph-title">Graph 4B: Per-Event Confidence Comparison: Normalized KL Z-Score (Blue) vs. Transformer P(bp) (Purple)</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="graph-legend-inline">
+                    <span class="legend-item"><span class="legend-swatch" style="background:#1d4ed8;height:7px;"></span>KL Z-Score</span>
+                    <span class="legend-item"><span class="legend-swatch" style="background:#7e22ce;height:7px;"></span>Transformer P(bp)</span>
+                  </span>
+                  <button type="button" id="btnDownloadConfPlot" class="mini-btn">Save Confidence PNG</button>
+                </div>
+              </div>
+              <canvas id="eventConfidenceCanvas" width="660" height="205" style="display:block;background:#fff;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Sliding-Window Sequence Similarity Plot (Graph 5: SimPlot) -->
+        <div id="tab-simplot" class="tab-content hidden">
+          <div class="graph-card">
+            <div class="graph-card-head">
+              <span class="graph-title">Graph 5: Sliding-Window Nucleotide Similarity Plot (SimPlot): Query vs. Parental Lineages
+                <span class="help-q" tabindex="0"
+                  data-tip="Shows how closely the selected recombinant query matches parental sequences across the alignment. Recombination crossovers appear where the bold Left Parent (blue) and Right Parent (red) curves cross.">?</span>
+              </span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <label class="mini-lbl" for="simplotQuerySelect">Query:</label>
+                <select id="simplotQuerySelect" class="win-select" style="width:auto;min-width:130px;"></select>
+                <label class="mini-lbl" for="simplotWindowSelect">Window:</label>
+                <select id="simplotWindowSelect" class="win-select" style="width:auto;">
+                  <option value="50">50 bp</option>
+                  <option value="100" selected>100 bp</option>
+                  <option value="200">200 bp</option>
+                  <option value="300">300 bp</option>
+                </select>
+                <label class="mini-lbl" style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;"
+                  title="Automatically zoom Y-axis to active % identity range so crossover switches fill the plot">
+                  <input type="checkbox" id="simplotAutoScaleY" checked /> Auto-Zoom Y
+                </label>
+                <button type="button" id="btnDownloadSimplot" class="mini-btn">Save SimPlot PNG</button>
+              </div>
+            </div>
+            <div style="padding:6px;">
+              <canvas id="simplotCanvas" width="700" height="290"
+                style="display:block;background:#fff;cursor:crosshair;"></canvas>
+              <div id="simplotLegend" class="simplot-legend"></div>
+              <div class="mono-muted" style="font-size:10px;margin-top:3px;">
+                Tip: Click any sequence chip above to toggle its curve · Hover plot for exact per-sequence % identity · Click dashed breakpoint lines to jump to event.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: TP / FP / FN Diagnostics -->
+        <div id="tab-diagnostics" class="tab-content hidden">
+          <div class="pane-subhead" id="diagVerdictBanner"></div>
+          <div class="mono-muted" style="font-size:10.5px;padding:4px 7px;margin-bottom:6px;background:#f8fafc;border:1px solid #d4d8df;border-radius:3px;">
+            <strong>Unit of Evaluation (Breakpoint Level):</strong> Greedy 1-to-1 matching between predicted consolidated breakpoints and ground-truth breakpoints within &plusmn;tolerance bp. <strong>TP</strong> = predicted breakpoint matched to a true breakpoint; <strong>FP</strong> = unmatched predicted breakpoint; <strong>FN</strong> = missed true breakpoint.
+          </div>
+          <div id="diagnosticsWarningsBox" class="diag-warnings-box hidden">
+            <div class="diag-warnings-header">
+              <span class="warn-icon">⚠️</span>
+              <strong>Out-of-Distribution &amp; Diagnostic Warnings (<span id="diagWarningsCount">0</span>)</strong>
+            </div>
+            <ul id="diagWarningsList" class="diag-warnings-list"></ul>
+          </div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="toleranceMetricsTable">
+              <thead>
+                <tr>
+                  <th>Tol (±bp)</th>
+                  <th>TP</th>
+                  <th>FP</th>
+                  <th>FN</th>
+                  <th>Recall</th>
+                  <th>Precision</th>
+                  <th>F1</th>
+                  <th>Ctrl F1</th>
+                  <th>Lift</th>
+                  <th>Med Err</th>
+                </tr>
+              </thead>
+              <tbody id="toleranceMetricsBody"></tbody>
+            </table>
+          </div>
+          <div class="pane-subhead mt-6">Ground Truth Breakpoints: Detected (TP) vs. Missed (FN)</div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="gtDiagnosticTable">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>GT bp</th>
+                  <th>GT Event</th>
+                  <th>Type</th>
+                  <th>Matched Pred</th>
+                  <th>Err</th>
+                  <th>Local z</th>
+                  <th>Diagnostic / Failure Note</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="gtDiagnosticBody"></tbody>
+            </table>
+          </div>
+          <div class="pane-subhead mt-6">Predicted Consolidated Calls: Matched (TP) vs. Unmatched (FP)</div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="predDiagnosticTable">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Event #</th>
+                  <th>Pred bp</th>
+                  <th>z / TF</th>
+                  <th>Matched GT</th>
+                  <th>Err</th>
+                  <th>Explanation</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="predDiagnosticBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: Inference Timings -->
+        <div id="tab-timings" class="tab-content hidden">
+          <div class="pane-subhead" id="timingRunSubtitle"></div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="currentTimingTable">
+              <thead>
+                <tr>
+                  <th>Pipeline Stage</th>
+                  <th>Duration (ms)</th>
+                  <th>Share (%)</th>
+                  <th>Items</th>
+                  <th>Throughput</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="currentTimingBody"></tbody>
+            </table>
+          </div>
+          <div class="pane-subhead mt-6">Recorded Live Inference Timing History</div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="historyTimingTable">
+              <thead>
+                <tr>
+                  <th>run_id</th>
+                  <th>dataset</th>
+                  <th>checkpoint</th>
+                  <th>mode</th>
+                  <th>S × L</th>
+                  <th>M_tx</th>
+                  <th>Parse</th>
+                  <th>Embed</th>
+                  <th>TF Fwd</th>
+                  <th>Flank-KL</th>
+                  <th>Total (ms)</th>
+                  <th>bp/s</th>
+                </tr>
+              </thead>
+              <tbody id="historyTimingBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: 10k & Extreme Validation -->
+        <div id="tab-benchmarks" class="tab-content hidden">
+          <div class="pane-subhead">10,000-Alignment Scaling &amp; Specificity Benchmark (scaling_results_summary.csv)
+          </div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="scalingBenchmarkTable">
+              <thead id="scalingBenchmarkHead"></thead>
+              <tbody id="scalingBenchmarkBody"></tbody>
+            </table>
+          </div>
+          <div class="pane-subhead mt-6">Out-of-Range Extreme Generalisation &amp; Control Specificity
+            (out_of_range_results_summary.csv)</div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="extremeBenchmarkTable">
+              <thead id="extremeBenchmarkHead"></thead>
+              <tbody id="extremeBenchmarkBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: Notes -->
+        <div id="tab-notes" class="tab-content hidden">
+          <div class="notes-head-row">
+            <span class="pane-subhead">Reviewer Diagnostic Feedback Annotations</span>
+            <button type="button" id="btnOpenAnnotationModal" class="mini-btn">+ Add Note</button>
+          </div>
+          <div class="table-scroll">
+            <table class="rdp-table" id="annotationsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Dataset</th>
+                  <th>Target</th>
+                  <th>Verdict</th>
+                  <th>Reviewer</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody id="annotationsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANE 3 (BOTTOM-LEFT): Breakpoint / Boundary Scan Plot (Graph 2) + Side Controls -->
+    <section class="rdp-pane pane-plot">
+      <div class="pane-header">
+        <span class="pane-title">Graph 2: Recombination Breakpoint Scan: Flanking KL Z-Score vs. Transformer P(bp)</span>
+        <span class="graph-legend-inline">
+          <span class="legend-item"><span class="legend-swatch" style="background:#111111;"></span>Flanking KL Z-Score</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#7e22ce;"></span>Transformer P(bp)</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#dc2626;border-top:1px dashed #dc2626;"></span>Null Z-Threshold</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#2166ac;height:6px;"></span>Predicted Breakpoints</span>
+        </span>
+      </div>
+      <div class="plot-split">
+        <div class="plot-canvas-box" style="display:flex;flex-direction:column;">
+          <div style="position:relative;flex:1;min-height:0;">
+            <canvas id="genomeTrackCanvas" width="760" height="235"></canvas>
+            <div id="trackTooltip" class="plot-tooltip hidden"></div>
+          </div>
+          <div id="regionAnalysisBar" class="region-analysis-bar hidden">
+            <span id="regionAnalysisText" class="mono"></span>
+            <div style="display:flex;gap:4px;">
+              <button type="button" id="btnInspectRegion" class="mini-btn">Inspect Region</button>
+              <button type="button" id="btnZoomRegionPlot" class="mini-btn">Zoom Graph</button>
+              <button type="button" id="btnResetPlotZoom" class="mini-btn hidden">Reset Zoom</button>
+              <button type="button" id="btnZoomRegionAln" class="mini-btn">View Alignment</button>
+              <button type="button" id="btnAskAiRegion" class="mini-btn">Ask AI</button>
+              <button type="button" id="btnClearRegion" class="mini-btn">Clear</button>
+            </div>
+          </div>
+          <div class="plot-hint-bar">
+            <span>Tip: Click and drag on the graph to select and analyze a specific region.</span>
+            <button type="button" id="btnDownloadScanPlot" class="mini-btn">Save Scan PNG</button>
+          </div>
+        </div>
+
+        <aside class="plot-side-controls">
+          <div class="readout-box" id="cursorReadoutBox" title="Cursor position (bp) : Flanking KL Z-score">0 : 0.00
+          </div>
+          <button type="button" id="btnRunSide" class="win-btn win-btn-run">Run</button>
+          <button type="button" id="btnCancelJobSide" class="win-btn tb-btn-cancel hidden">Cancel</button>
+
+          <label class="side-lbl" for="scoringModeSelect">Detection Method <span class="help-q" tabindex="0"
+              data-tip="Hybrid combines Flanking KL and Transformer (recommended). KL only is model-free; Transformer only uses the neural linkage scorer.">?</span></label>
+          <select id="scoringModeSelect" class="win-select"></select>
+
+          <label class="side-lbl" for="checkpointSelect">Model Weights <span class="help-q" tabindex="0"
+              data-tip="ckpt_N40000 is the default 40k-alignment model; ckpt_N10000 is the 10k model; ckpt_N10000_extreme is trained on extreme mutation/recombination rates; ckpt_N10000_v2 adds LD-invariant features; ckpt_ensemble fuses all core models via LogMeanExp.">?</span></label>
+          <select id="checkpointSelect" class="win-select"></select>
+
+          <label class="side-lbl" style="display:flex;align-items:center;gap:6px;margin-top:4px;cursor:pointer;"
+            title="Run forward + reverse-complemented alignment passes and average boundary logits for sharper breakpoint localization">
+            <input type="checkbox" id="optMirrorTta" />
+            <span>Mirror TTA <span class="help-q" tabindex="0"
+                data-tip="Bidirectional Mirror Test-Time Augmentation: scores both forward and reverse alignment passes (2x Transformer cost, higher accuracy).">?</span></span>
+          </label>
+
+          <label class="side-lbl" for="evalToleranceInput">Match Tolerance <span class="help-q" tabindex="0"
+              data-tip="Maximum distance (in bp) from a ground-truth breakpoint to count as a True Positive.">?</span></label>
+          <select id="evalToleranceInput" class="win-select">
+            <option value="0">±0 bp</option>
+            <option value="3">±3 bp</option>
+            <option value="10">±10 bp</option>
+            <option value="30" selected>±30 bp</option>
+            <option value="50">±50 bp</option>
+          </select>
+
+          <button type="button" id="btnOptionsSide" class="win-btn">Options...</button>
+          <button type="button" id="btnOpenSide" class="win-btn">Open FASTA...</button>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PANE 4 (BOTTOM-RIGHT): Mosaic Sequence Map (Graph 3: Parental Tract Bars) -->
+    <section class="rdp-pane pane-mosaic">
+      <div class="pane-header">
+        <span class="pane-title">Graph 3: Recombinant Sequence Mosaic Architecture &amp; Parental Tract Map <span class="help-q" tabindex="0"
+            data-tip="Visualizes each recombinant carrier as horizontal colored tracts showing its Left Parent (before breakpoint) and Right Parent (after breakpoint) across the genome.">?</span></span>
+        <div class="mosaic-controls">
+          <label class="mini-lbl"><input type="checkbox" id="chkMosaicSelectedOnly" /> Selected event only</label>
+          <button type="button" id="btnDownloadMosaicPlot" class="mini-btn">Save Mosaic PNG</button>
+          <span class="mono-muted" id="mosaicLegendSummary"></span>
+        </div>
+      </div>
+      <div class="mosaic-canvas-scroll">
+        <canvas id="mosaicMapCanvas" width="700" height="220"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL 1: Open / Upload FASTA Alignment & Ground Truth -->
+  <div id="openModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span>Open Alignment &amp; Optional Ground-Truth Log</span>
+        <button type="button" id="btnCloseOpenModal" class="mini-btn">✕</button>
+      </div>
+      <form id="uploadForm">
+        <div id="uploadModalErrorBanner" class="modal-error-banner hidden" role="alert">
+          <div class="banner-content">
+            <span class="banner-icon">⚠️</span>
+            <span id="uploadModalErrorMessage" class="banner-text"></span>
+          </div>
+          <button type="button" id="btnDismissUploadError" class="banner-dismiss" title="Dismiss error">&times;</button>
+        </div>
+        <div class="modal-content modal-body">
+          <label class="side-lbl" for="fastaFileInput">Upload FASTA file(s) (.fasta, .fas, .fa; select multiple for batch)</label>
+          <input type="file" id="fastaFileInput" accept=".fasta,.fas,.fa,.txt" multiple class="win-file" />
+
+          <label class="side-lbl mt-6" for="pastedFastaInput">Or paste FASTA sequences</label>
+          <textarea id="pastedFastaInput" class="win-textarea" rows="6"
+            placeholder=">Seq_0&#10;ACGTACGT...&#10;>Seq_1&#10;ACGTACGT..."></textarea>
+
+          <hr class="sep" />
+
+          <label class="side-lbl" for="gtFileInput">Optional Ground-Truth Log (.json, .csv, SantaSim .txt)</label>
+          <input type="file" id="gtFileInput" accept=".json,.csv,.tsv,.txt" class="win-file" />
+
+          <label class="side-lbl mt-6" for="pastedGtInput">Or breakpoint coordinates (bp, comma-separated)</label>
+          <input type="text" id="pastedGtInput" class="win-input"
+            placeholder="Optional: e.g. 450, 1250, 2400 (leave empty if unknown)" />
+        </div>
+        <div class="modal-foot">
+          <button type="button" id="btnClearUpload" class="win-btn">Clear Form</button>
+          <button type="button" id="btnCancelOpenModal" class="win-btn">Cancel</button>
+          <button type="submit" class="win-btn win-btn-run">Load &amp; Run</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Options Dialog (.ini Parameters) -->
+  <div id="optionsModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span>Detection Options &amp; Configuration</span>
+        <button type="button" id="btnCloseOptionsModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content">
+        <div class="grid-2">
+          <div>
+            <label class="side-lbl" for="zThreshInput">KL z-score threshold</label>
+            <input type="number" id="zThreshInput" class="win-input" value="6.0" step="0.5" min="1.0" max="20.0" />
+          </div>
+          <div>
+            <label class="side-lbl" for="tfLogitThreshInput">Transformer logit threshold</label>
+            <input type="number" id="tfLogitThreshInput" class="win-input" value="0.8" step="0.1" min="-2.0"
+              max="5.0" />
+          </div>
+          <div>
+            <label class="side-lbl" for="flankWindowInput">Flanking window L_w (cols)</label>
+            <input type="number" id="flankWindowInput" class="win-input" value="250" step="25" min="25" max="1000" />
+          </div>
+          <div>
+            <label class="side-lbl" for="mergeRadiusInput">Consolidation merge radius (bp)</label>
+            <input type="number" id="mergeRadiusInput" class="win-input" value="75" step="5" min="5" max="300" />
+          </div>
+          <div>
+            <label class="side-lbl" for="betaInput">Softmax inverse temp (beta)</label>
+            <input type="number" id="betaInput" class="win-input" value="20.0" step="1.0" min="1.0" max="60.0" />
+          </div>
+          <div>
+            <label class="side-lbl" for="nullPolicyInput">3rd-state null policy</label>
+            <select id="nullPolicyInput" class="win-select">
+              <option value="duplicate" selected>duplicate</option>
+              <option value="zero">zero</option>
+              <option value="drop">drop</option>
+            </select>
+          </div>
+        </div>
+        <label class="side-lbl mt-6">Configuration preview</label>
+        <pre id="iniPreviewBox" class="ini-preview"></pre>
+      </div>
+      <div class="modal-foot">
+        <button type="button" id="btnCancelOptions" class="win-btn">Close</button>
+        <button type="button" id="btnApplyOptions" class="win-btn win-btn-run">Apply &amp; Run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Reviewer Annotation Note -->
+  <div id="annotationModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span>Record Diagnostic Note</span>
+        <button type="button" id="btnCloseModal" class="mini-btn">✕</button>
+      </div>
+      <form id="annotationForm">
+        <div class="modal-content">
+          <div class="grid-2">
+            <div>
+              <label class="side-lbl" for="annTargetType">Target type</label>
+              <select id="annTargetType" class="win-select">
+                <option value="predicted_event">Predicted event</option>
+                <option value="missed_gt_breakpoint">Missed GT breakpoint (FN)</option>
+                <option value="general">General alignment note</option>
+              </select>
+            </div>
+            <div>
+              <label class="side-lbl" for="annTargetId">Target ID / bp</label>
+              <input type="text" id="annTargetId" class="win-input" placeholder="Event #1" required />
+            </div>
+          </div>
+
+          <label class="side-lbl mt-6" for="annVerdict">Classification</label>
+          <select id="annVerdict" class="win-select">
+            <option value="confirmed_true_event">Confirmed true event (TP)</option>
+            <option value="tract_tail_echo">Tract-tail echo near true breakpoint</option>
+            <option value="homoplasy_false_positive">Homoplasy false positive (FP)</option>
+            <option value="boundary_dead_zone_miss">Boundary / edge miss (FN)</option>
+            <option value="parent_assignment_issue">Breakpoint ok, carrier/parent off</option>
+            <option value="other">Other</option>
+          </select>
+
+          <label class="side-lbl mt-6" for="annComment">Observation</label>
+          <textarea id="annComment" class="win-textarea" rows="3" required></textarea>
+        </div>
+        <div class="modal-foot">
+          <button type="button" id="btnCancelModal" class="win-btn">Cancel</button>
+          <button type="submit" class="win-btn win-btn-run">Save Note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Sign In / Register -->
+  <div id="authModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-head">
+        <span>Private Account</span>
+        <button type="button" id="btnCloseAuthModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content">
+        <div id="authErrorMsg" class="modal-error-banner hidden" style="padding:6px 8px;margin-bottom:8px;"></div>
+        <div id="authLoggedOutView">
+          <div class="mono-muted" style="font-size:10.5px;margin-bottom:8px;">
+            Sign in or create an account to save private recombination runs to your history.
+          </div>
+          <label class="side-lbl" for="authUsername">Username</label>
+          <input type="text" id="authUsername" class="win-input" placeholder="username" />
+          <label class="side-lbl mt-6" for="authPassword">Password</label>
+          <input type="password" id="authPassword" class="win-input" placeholder="password" />
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button type="button" id="btnLoginSubmit" class="win-btn win-btn-run" style="flex:1;">Sign In</button>
+            <button type="button" id="btnRegisterSubmit" class="win-btn" style="flex:1;">Create Account</button>
+          </div>
+        </div>
+        <div id="authLoggedInView" class="hidden">
+          <p class="mono" id="authLoggedInLabel" style="margin-bottom:10px;"></p>
+          <button type="button" id="btnLogoutSubmit" class="win-btn" style="width:100%;">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: My Private Runs -->
+  <div id="historyModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:820px;">
+      <div class="modal-head">
+        <span>My Private Saved Runs</span>
+        <button type="button" id="btnCloseHistoryModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content">
+        <input type="text" id="myRunsSearchInput" class="win-input" placeholder="Filter by dataset or checkpoint..."
+          style="margin-bottom:8px;" />
+        <div class="table-scroll" style="max-height:380px;">
+          <table class="rdp-table">
+            <thead>
+              <tr>
+                <th>Dataset</th>
+                <th>Dimensions</th>
+                <th>Events</th>
+                <th>Checkpoint</th>
+                <th>Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="myRunsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: Admin Dashboard -->
+  <div id="adminModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:940px;">
+      <div class="modal-head">
+        <span>Admin Data Collection &amp; Continuous Self-Training</span>
+        <button type="button" id="btnCloseAdminModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content table-scroll" style="max-height:520px;">
+        <div id="adminKpiStrip" class="summary-bar" style="margin-bottom:8px;border-radius:4px;"></div>
+        <div
+          style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <input type="text" id="adminSearchInput" class="win-input" placeholder="Filter runs by username or dataset..."
+            style="flex:1;min-width:200px;" />
+          <div style="display:flex;gap:6px;">
+            <a class="mini-btn" href="/api/admin/export.zip">Export All ZIP</a>
+            <a class="mini-btn" href="/api/admin/export.csv">Export All CSV</a>
+            <a class="mini-btn" href="/api/admin/export.json">Export All JSON</a>
+          </div>
+        </div>
+        <div
+          style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;background:#f8fafc;border:1px solid #cbd5e1;padding:6px 8px;border-radius:4px;">
+          <span id="adminAdaptiveStatus" class="mono-muted">Adaptive model status: -</span>
+          <button type="button" id="btnAdminResetAdaptive" class="mini-btn"
+            title="Reset ckpt_user_adaptive weights back to base ckpt_N10000">Reset Adaptive Model</button>
+        </div>
+        <div class="pane-subhead">All User Runs (Click FASTA or JSON to collect inputs/results for testing)</div>
+        <table class="rdp-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Dataset</th>
+              <th>Source</th>
+              <th>Dims</th>
+              <th>Events</th>
+              <th>Checkpoint</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminRunsBody"></tbody>
+        </table>
+        <div class="pane-subhead mt-6">Registered Users</div>
+        <table class="rdp-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Provider</th>
+              <th>Role</th>
+              <th>Runs</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersBody"></tbody>
+        </table>
+        <div class="pane-subhead mt-6">Continuous Self-Training Log (<code>ckpt_user_adaptive</code>, user inputs only)
+        </div>
+        <table class="rdp-table">
+          <thead>
+            <tr>
+              <th>Dataset</th>
+              <th>Status</th>
+              <th>Loss Before</th>
+              <th>Loss After</th>
+              <th>Steps</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="adminRetrainBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: Side-by-Side Run Comparison -->
+  <div id="compareModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:920px;">
+      <div class="modal-head">
+        <span>Compare Runs Side by Side</span>
+        <button type="button" id="btnCloseCompareModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content table-scroll" style="max-height:540px;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <label class="tb-lbl" for="compareRunASelect">Run A:</label>
+          <select id="compareRunASelect" class="win-select" style="flex:1;min-width:200px;"></select>
+          <label class="tb-lbl" for="compareRunBSelect">Run B:</label>
+          <select id="compareRunBSelect" class="win-select" style="flex:1;min-width:200px;"></select>
+        </div>
+        <div id="compareSummaryArea">
+          <table class="rdp-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Run A</th>
+                <th>Run B</th>
+                <th>Delta / Notes</th>
+              </tr>
+            </thead>
+            <tbody id="compareMetricsBody"></tbody>
+          </table>
+          <div class="pane-subhead mt-6">Breakpoint Overlap (±200 bp)</div>
+          <div id="compareEventsDiff" class="mono-muted" style="padding:6px 0;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: Selected Region Diversity & Pairwise Identity -->
+  <div id="regionModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:860px;">
+      <div class="modal-head">
+        <span>Selected Region Diversity &amp; Pairwise Identity</span>
+        <button type="button" id="btnCloseRegionModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content table-scroll" style="max-height:560px;">
+        <div id="regionKpiStrip" class="summary-bar" style="margin-bottom:8px;border-radius:4px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:220px;">
+            <label class="tb-lbl" for="regionRefSeqSelect">Query Sequence:</label>
+            <select id="regionRefSeqSelect" class="win-select" style="flex:1;"></select>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btnDownloadRegionPlot" class="mini-btn">Save Region PNG</button>
+            <button type="button" id="btnRegionAskAi" class="mini-btn">Ask AI</button>
+          </div>
+        </div>
+        <div class="graph-card" style="margin-bottom:8px;">
+          <div class="graph-card-head">
+            <span class="graph-title">Graph 6: Pairwise Nucleotide Identity: Inside Region (Blue) vs. Outside Region (Gray)</span>
+          </div>
+          <canvas id="regionIdentityCanvas" width="760" height="240" style="display:block;max-width:100%;"></canvas>
+        </div>
+        <table class="rdp-table">
+          <thead>
+            <tr>
+              <th>Sequence</th>
+              <th>Inside Region %</th>
+              <th>Outside Region %</th>
+              <th>Shift (Δ)</th>
+            </tr>
+          </thead>
+          <tbody id="regionPairwiseBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 9: Batch Multi-FASTA Analysis -->
+  <div id="batchModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:860px;">
+      <div class="modal-head">
+        <span>Batch Multi-FASTA Analysis</span>
+        <button type="button" id="btnCloseBatchModal" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-content table-scroll" style="max-height:520px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <span id="batchProgressText" class="mono-muted">Preparing batch...</span>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btnExportBatchCsv" class="mini-btn">Download Batch CSV</button>
+            <button type="button" id="btnExportBatchJson" class="mini-btn">Download Batch JSON</button>
+          </div>
+        </div>
+        <table class="rdp-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Status</th>
+              <th>Dimensions</th>
+              <th>Events</th>
+              <th>Runtime</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="batchResultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-window Drag & Drop FASTA Overlay -->
+  <div id="dropOverlay" class="drop-overlay hidden">
+    <div class="drop-overlay-box">
+      <strong>Drop FASTA alignment to analyze</strong>
+      <div class="mono-muted">Supports .fasta, .fas, .fa</div>
+    </div>
+  </div>
+
+  <!-- Floating AI Assistant Chatbot -->
+  <div id="aiChatWidget" class="ai-chat-widget">
+    <button type="button" id="btnToggleAiChat" class="ai-chat-fab" title="Ask the gt-transformer Expert AI Assistant">
+      Ask AI Assistant
+    </button>
+    <div id="aiChatDrawer" class="ai-chat-drawer hidden" role="dialog" aria-label="gt-transformer Expert AI Assistant">
+      <div class="ai-chat-head">
+        <div>
+          <strong>gt-transformer Expert AI Assistant</strong>
+          <div id="aiChatStatus" class="ai-chat-status">Checking AI engine...</div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button type="button" id="btnClearAiChat" class="mini-btn" title="Clear chat history">Clear</button>
+          <button type="button" id="btnCloseAiChat" class="mini-btn">✕</button>
+        </div>
+      </div>
+      <div id="aiChatMessages" class="ai-chat-messages">
+        <div class="ai-msg ai-msg-bot">
+          Hi! I am deeply acquainted with every stage of the <strong>gt-transformer</strong> hybrid architecture (40k/10k/extreme/V2 checkpoints, Mirror TTA, Flanking KL null scan, Transformer probability, parental attribution, SimPlot, and export formats). Upload a FASTA alignment, press Run, and ask me anything about your events, parents, graphs, or parameters!
+        </div>
+      </div>
+      <div class="ai-chat-chips">
+        <button type="button" class="ai-chip" data-q="Give me a complete interpretation of all detected recombination events, carriers, and Left->Right parental lineages in this run.">Explain events &amp; parents</button>
+        <button type="button" class="ai-chip" data-q="How do I interpret the SimPlot curves, Evidence Scatter Plot, and Mosaic Tract Map for these results?">Interpret graphs</button>
+        <button type="button" class="ai-chip" data-q="Are any of these breakpoints shared ancestral crossovers vs. independent origins, and do any warnings apply?">Ancestral &amp; warnings</button>
+        <button type="button" class="ai-chip" data-q="Which gt-transformer checkpoint, scoring mode, and Mirror TTA setting should I use for this alignment?">Best model &amp; settings</button>
+      </div>
+      <form id="aiChatForm" class="ai-chat-form">
+        <input type="text" id="aiChatInput" class="win-input" placeholder="Ask anything about your alignment, graphs, or model..."
+          autocomplete="off" />
+        <button type="submit" id="btnSendAiChat" class="win-btn win-btn-run">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=15"></script>
+</body>
+
+</html>

@@ -1,0 +1,99 @@
+{
+  "dataset_name": "ULTIMATE_STRESS_TEST_64seq_12000bp",
+  "n_sequences": 64,
+  "genome_length_bp": 12000,
+  "breakpoints_bp": [
+    1150,
+    2600,
+    3350,
+    4800,
+    5180,
+    6750,
+    8200,
+    9150,
+    10100,
+    11150
+  ],
+  "events": [
+    {
+      "bp": 1150,
+      "type": "ancestral_clade_crossover",
+      "carriers": [
+        "Rec01..Rec04"
+      ],
+      "parents": "CladeA -> CladeB"
+    },
+    {
+      "bp": 2600,
+      "type": "crf_cassette_left",
+      "carriers": [
+        "Rec05..Rec07"
+      ],
+      "parents": "CladeC -> CladeD"
+    },
+    {
+      "bp": 3350,
+      "type": "crf_cassette_right",
+      "carriers": [
+        "Rec05..Rec07"
+      ],
+      "parents": "CladeD -> CladeC"
+    },
+    {
+      "bp": 4800,
+      "type": "gene_conversion_380bp_left",
+      "carriers": [
+        "Rec08..Rec09"
+      ],
+      "parents": "CladeB -> CladeE"
+    },
+    {
+      "bp": 5180,
+      "type": "gene_conversion_380bp_right",
+      "carriers": [
+        "Rec08..Rec09"
+      ],
+      "parents": "CladeE -> CladeB"
+    },
+    {
+      "bp": 6750,
+      "type": "rare_singleton_1of64",
+      "carriers": [
+        "Rec10"
+      ],
+      "parents": "CladeE -> CladeF"
+    },
+    {
+      "bp": 8200,
+      "type": "complex_triple_mosaic_1",
+      "carriers": [
+        "Rec11..Rec13"
+      ],
+      "parents": "CladeA -> CladeD"
+    },
+    {
+      "bp": 9150,
+      "type": "complex_triple_mosaic_2",
+      "carriers": [
+        "Rec11..Rec13"
+      ],
+      "parents": "CladeD -> CladeF"
+    },
+    {
+      "bp": 10100,
+      "type": "complex_triple_mosaic_3",
+      "carriers": [
+        "Rec11..Rec13"
+      ],
+      "parents": "CladeF -> CladeB"
+    },
+    {
+      "bp": 11150,
+      "type": "drifted_iupac_gap_crossover",
+      "carriers": [
+        "Rec14..Rec15"
+      ],
+      "parents": "CladeF -> CladeC"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Ground Truth — GT-Transformer & recombx",
+  "description": "Fast, calibrated recombination inference for viral and microbial genomes uniting a Window Transformer with permutation-calibrated Flanking-KL divergence.",
+  "requestFramePermissions": []
+}
